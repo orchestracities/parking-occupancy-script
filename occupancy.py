@@ -1,14 +1,16 @@
 #!/usr/bin/python
 
-import sys, getopt, datetime, time, math
+import sys, getopt, datetime, pytz, time, math
+from dateutil import parser
 from crate import client
 
 def main(argv):
     # Setting up the connection to CrateDB (with command line args)
     crate_host = ''
     crate_user = ''
+    start_date = None
     try:
-        opts, args = getopt.getopt(argv,"h:u:",["host=","user="])
+        opts, args = getopt.getopt(argv,"h:u:s:",["host=","user=", "start-date="])
     except getopt.GetoptError:
         print('occupancy.py -h <cratedb_host> -u <cratedb_user>')
         sys.exit(2)
@@ -17,15 +19,28 @@ def main(argv):
             crate_host = arg
         elif opt in ("-u", "--user"):
             crate_user = arg
+        elif opt in ("-s", "--start-date"):
+            start_date = parser.parse(arg)
     connection = client.connect(crate_host, username=crate_user)
     cursor = connection.cursor()
 
-    # Getting current time, and previous day time
-    currentTime = datetime.datetime.now().replace(microsecond=0,second=0,minute=0)
-    previousDay = (currentTime - datetime.timedelta(hours=24))
+    # Getting current time, and previous time. If no start date given, it's the last 24 hours
+    currentTime = datetime.datetime.now().replace(microsecond=0,second=0,minute=0,tzinfo=pytz.UTC)
+    if start_date:
+        previousTime = start_date.replace(microsecond=0,second=0,minute=0,tzinfo=pytz.UTC)
+    else:
+        previousTime = (currentTime - datetime.timedelta(hours=24))
 
-    # Setting up cursor and pulling data from the last 24 hours
-    cursor.execute('SELECT "status","time_index", "entity_id", "entity_type", "fiware_servicepath" FROM "mtekz"."etparkingspot" WHERE "time_index">=? ORDER BY time_index ASC', (previousDay.strftime('%s')+'000',))
+    # How many hours to compute data for
+    hoursDiff = int((currentTime-previousTime).total_seconds()/60/60)
+
+    # Check if hours not 0 or negative
+    if hoursDiff < 1:
+        print("Start date too close to current time")
+        sys.exit(2)
+
+    # Setting up cursor and pulling data since the start time
+    cursor.execute('SELECT "status","time_index", "entity_id", "entity_type", "fiware_servicepath" FROM "mtekz"."etparkingspot" WHERE "time_index">=? ORDER BY time_index ASC', (previousTime.strftime('%s')+'000',))
     data = cursor.fetchall()
 
     # List of Service Paths
@@ -38,7 +53,7 @@ def main(argv):
         entityIds = list(dict.fromkeys(map(lambda a: a[2], pathData)))
         for entity in entityIds:
             # Getting the last known status. Assumed free if none found
-            cursor.execute('SELECT "status","time_index", "entity_id", "entity_type", "fiware_servicepath" FROM "mtekz"."etparkingspot" WHERE "time_index"<? AND "entity_id"=? AND "fiware_servicepath"=? AND status!=? ORDER BY time_index DESC', (previousDay.strftime('%s')+'000', entity, path, 'None'))
+            cursor.execute('SELECT "status","time_index", "entity_id", "entity_type", "fiware_servicepath" FROM "mtekz"."etparkingspot" WHERE "time_index"<? AND "entity_id"=? AND "fiware_servicepath"=? AND status!=? ORDER BY time_index DESC', (previousTime.strftime('%s')+'000', entity, path, 'None'))
             previousState = cursor.fetchone()
             if previousState:
                 previousState = previousState[0]
@@ -49,10 +64,10 @@ def main(argv):
                 entity_type = entityData[0][3]
             else:
                 entity_type = None
-            # For each of the 24 hours of the past day
-            for i in range(24):
-                start_time = (currentTime - datetime.timedelta(hours=(24-i))).strftime('%s')+'000'
-                end_time = (currentTime - datetime.timedelta(hours=(24-i-1))).strftime('%s')+'000'
+            # For each of the hours since the start time given
+            for i in range(hoursDiff):
+                start_time = (currentTime - datetime.timedelta(hours=(hoursDiff-i))).strftime('%s')+'000'
+                end_time = (currentTime - datetime.timedelta(hours=(hoursDiff-i-1))).strftime('%s')+'000'
                 hourData = filter(lambda d: d[1]>int(start_time) and d[1]<int(end_time), entityData)
                 occupiedTime = 0
                 for j in range((len(hourData))):
@@ -69,7 +84,8 @@ def main(argv):
                         previousState = hourData[j+1][0]
                 occupancy = int(math.ceil((occupiedTime/3600000.0)*100))
                 occupancyData.append((occupancy, start_time, entity, entity_type, path))
-    cursor.executemany('INSERT INTO "mtekz"."etparkingoccupancy" (occupancy, time_index, entity_id, entity_type, fiware_servicepath) VALUES (?,?,?,?,?)', occupancyData)
+                print(occupancy, start_time, entity, entity_type, path)
+    #cursor.executemany('INSERT INTO "mtekz"."etparkingoccupancy" (occupancy, time_index, entity_id, entity_type, fiware_servicepath) VALUES (?,?,?,?,?)', occupancyData)
     sys.exit()
 
 if __name__ == "__main__":
