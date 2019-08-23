@@ -77,7 +77,7 @@ def main(argv):
             for i in range(hoursDiff):
                 start_time = (currentTime - datetime.timedelta(hours=(hoursDiff-i+1))).strftime('%s')+'000'
                 end_time = (currentTime - datetime.timedelta(hours=(hoursDiff-i))).strftime('%s')+'000'
-                hourData = filter(lambda d: d[1]>int(start_time) and d[1]<int(end_time), entityData)
+                hourData = filter(lambda d: d[1]>=int(start_time) and d[1]<int(end_time), entityData)
                 occupiedTime = 0
                 if len(hourData) > 0:
                     for j in range((len(hourData)+1)):
@@ -90,8 +90,8 @@ def main(argv):
                             timePassed = hourData[j][1] - hourData[j-1][1]
                         if previousState == 'occupied':
                             occupiedTime = occupiedTime + timePassed
-                        if j != len(hourData) and hourData[j-1][0]:
-                            previousState = hourData[j-1][0]
+                        if j != len(hourData) and hourData[j][0]:
+                            previousState = hourData[j][0]
                 if len(hourData) == 0 and previousState == 'occupied':
                     occupiedTime = 3600000
                 occupancy = int(math.ceil((occupiedTime/3600000.0)*100))
