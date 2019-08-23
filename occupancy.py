@@ -9,8 +9,9 @@ def main(argv):
     crate_host = ''
     crate_user = ''
     start_date = None
+    end_date = None
     try:
-        opts, args = getopt.getopt(argv,"h:u:s:",["host=","user=", "start-date="])
+        opts, args = getopt.getopt(argv,"h:u:s:e:",["host=","user=", "start-date=", "end-date="])
     except getopt.GetoptError:
         print('occupancy.py -h <cratedb_host> -u <cratedb_user>')
         sys.exit(2)
@@ -21,13 +22,21 @@ def main(argv):
             crate_user = arg
         elif opt in ("-s", "--start-date"):
             start_date = parser.parse(arg)
+        elif opt in ("-e", "--end-date"):
+            end_date = parser.parse(arg)
     connection = client.connect(crate_host, username=crate_user)
     cursor = connection.cursor()
 
     # Getting current time, and previous time. If no start date given, it's the last 24 hours
-    currentTime = datetime.datetime.now().replace(microsecond=0,second=0,minute=0,tzinfo=pytz.UTC)
+    currentTime = datetime.datetime.now().replace(microsecond=0,second=0,minute=0,hour=0,tzinfo=pytz.UTC)
+
+    # Current time changed if end date specified
+    if end_date:
+        currentTime = end_date.replace(microsecond=0,second=0,minute=0,hour=0,tzinfo=pytz.UTC)
+
+    # Start time changed if given a start date
     if start_date:
-        previousTime = start_date.replace(microsecond=0,second=0,minute=0,tzinfo=pytz.UTC)
+        previousTime = start_date.replace(microsecond=0,second=0,minute=0,hour=0,tzinfo=pytz.UTC)
     else:
         previousTime = (currentTime - datetime.timedelta(hours=24))
 
@@ -66,22 +75,25 @@ def main(argv):
                 entity_type = None
             # For each of the hours since the start time given
             for i in range(hoursDiff):
-                start_time = (currentTime - datetime.timedelta(hours=(hoursDiff-i))).strftime('%s')+'000'
-                end_time = (currentTime - datetime.timedelta(hours=(hoursDiff-i-1))).strftime('%s')+'000'
+                start_time = (currentTime - datetime.timedelta(hours=(hoursDiff-i+1))).strftime('%s')+'000'
+                end_time = (currentTime - datetime.timedelta(hours=(hoursDiff-i))).strftime('%s')+'000'
                 hourData = filter(lambda d: d[1]>int(start_time) and d[1]<int(end_time), entityData)
                 occupiedTime = 0
-                for j in range((len(hourData))):
-                    timePassed = 0
-                    if j == 0:
-                        timePassed = hourData[j][1] - int(start_time)
-                    elif j == (len(hourData)-1):
-                        timePassed = int(end_time) - hourData[j][1]
-                    else:
-                        timePassed = hourData[j+1][1] - hourData[j][1]
-                    if previousState == 'occupied':
-                        occupiedTime = occupiedTime + timePassed
-                    if j != (len(hourData)-1) and hourData[j+1][0]:
-                        previousState = hourData[j+1][0]
+                if len(hourData) > 0:
+                    for j in range((len(hourData)+1)):
+                        timePassed = 0
+                        if j == 0:
+                            timePassed = hourData[j][1] - long(start_time)
+                        elif j == len(hourData):
+                            timePassed = long(end_time) - hourData[j-1][1]
+                        else:
+                            timePassed = hourData[j][1] - hourData[j-1][1]
+                        if previousState == 'occupied':
+                            occupiedTime = occupiedTime + timePassed
+                        if j != len(hourData) and hourData[j-1][0]:
+                            previousState = hourData[j-1][0]
+                if len(hourData) == 0 and previousState == 'occupied':
+                    occupiedTime = 3600000
                 occupancy = int(math.ceil((occupiedTime/3600000.0)*100))
                 occupancyData.append((occupancy, start_time, entity, entity_type, path))
     cursor.executemany('INSERT INTO "mtekz"."etparkingoccupancy" (occupancy, time_index, entity_id, entity_type, fiware_servicepath) VALUES (?,?,?,?,?)', occupancyData)
