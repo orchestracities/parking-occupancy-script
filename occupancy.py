@@ -2,6 +2,7 @@
 
 import sys, getopt, datetime, pytz, time, math
 from dateutil import parser
+from tzlocal import get_localzone
 from crate import client
 
 def main(argv):
@@ -95,7 +96,8 @@ def main(argv):
                 if len(hourData) == 0 and previousState == 'occupied':
                     occupiedTime = 3600000
                 occupancy = int(math.ceil((occupiedTime/3600000.0)*100))
-                occupancyData.append((occupancy, start_time, entity, entity_type, path))
+                timezonedStartTime = datetime.datetime.fromtimestamp(long(start_time)/1000.0).replace(tzinfo=pytz.utc).astimezone(get_localzone()).strftime('%s')+'000'
+                occupancyData.append((occupancy, timezonedStartTime, entity, entity_type, path))
     cursor.executemany('INSERT INTO "mtekz"."etparkingoccupancy" (occupancy, time_index, entity_id, entity_type, fiware_servicepath) VALUES (?,?,?,?,?)', occupancyData)
     sys.exit()
 
