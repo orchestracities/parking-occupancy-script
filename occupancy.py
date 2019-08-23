@@ -84,8 +84,7 @@ def main(argv):
                         previousState = hourData[j+1][0]
                 occupancy = int(math.ceil((occupiedTime/3600000.0)*100))
                 occupancyData.append((occupancy, start_time, entity, entity_type, path))
-                print(occupancy, start_time, entity, entity_type, path)
-    #cursor.executemany('INSERT INTO "mtekz"."etparkingoccupancy" (occupancy, time_index, entity_id, entity_type, fiware_servicepath) VALUES (?,?,?,?,?)', occupancyData)
+    cursor.executemany('INSERT INTO "mtekz"."etparkingoccupancy" (occupancy, time_index, entity_id, entity_type, fiware_servicepath) VALUES (?,?,?,?,?)', occupancyData)
     sys.exit()
 
 if __name__ == "__main__":
