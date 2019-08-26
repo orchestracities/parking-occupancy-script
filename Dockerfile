@@ -1,7 +1,8 @@
 FROM python:2.7
 
-ADD occupancy.py /occupancy.py
+COPY requirements.txt /
+COPY occupancy.py /
 
-RUN pip install crate tzlocal
+RUN pip install -r /requirements.txt
 
-ENTRYPOINT /occupancy.py
+CMD /occupancy.py
