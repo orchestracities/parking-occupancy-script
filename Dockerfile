@@ -1,8 +1,15 @@
-FROM python:2.7
+FROM python:2.7-alpine
 
-COPY requirements.txt /
-COPY occupancy.py /
+RUN mkdir /app
 
-RUN pip install -r /requirements.txt
+COPY requirements.txt /app
 
-CMD /occupancy.py
+WORKDIR /app
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY occupancy.py /app
+
+ENTRYPOINT ["python"]
+
+CMD ["/occupancy.py"]
