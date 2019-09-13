@@ -27,9 +27,9 @@ def main(argv):
             end_date = parser.parse(arg)
     connection = client.connect(crate_host, username=crate_user)
     cursor = connection.cursor()
-    comoputeOccupancy(cursor, start_date, end_date)
+    computeOccupancy(cursor, start_date, end_date)
 
-def comoputeOccupancy(cursor, start_date, end_date):
+def computeOccupancy(cursor, start_date, end_date):
     # Current time changed if end date specified
     if end_date:
         currentTime = end_date.replace(microsecond=0,second=0,minute=0,hour=0,tzinfo=pytz.UTC)
