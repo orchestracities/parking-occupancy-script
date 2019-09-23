@@ -68,13 +68,15 @@ def computeOccupancy(cursor, start_date, end_date):
             previousStateRow = cursor.fetchone()
             if previousStateRow:
                 previousState = previousStateRow[0]
+                entity_type = previousStateRow[3]
+                name = previousStateRow[5]
+                refdevice = previousStateRow[6]
             else:
                 previousState = 'free'
+                entity_type = None
+                name = None
+                refdevice = None
             entityData = filter(lambda a: a[2] == entity, pathData)
-            # Setting these to None as defaults
-            entity_type = None
-            name = None
-            refdevice = None
             # For each of the hours since the start time given
             for i in range(hoursDiff):
                 start_time = (currentTime - datetime.timedelta(hours=(hoursDiff-i+1))).strftime('%s')+'000'
