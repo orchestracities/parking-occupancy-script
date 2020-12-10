@@ -65,6 +65,7 @@ def main(argv):
         computeOccupancy(cursor, schema, start_date, end_date, delta, dry_run)
     except Exception as e:
         logger.error(str(e), exc_info=True)
+        sys.exit(2)
     finally:
         if cursor:
             cursor.close()
