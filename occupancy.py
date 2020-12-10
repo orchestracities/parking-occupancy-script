@@ -52,7 +52,7 @@ def main(argv):
             delta = int(arg)
         elif opt in ("-r", "--dry-run"):
             dry_run = bool(arg)
-    if not crate_host or not crate_user:
+    if not crate_host:
         logger.error("missing parameters")
         print('occupancy.py -h <cratedb_host> -u <cratedb_user>')
         sys.exit(2)
@@ -201,7 +201,6 @@ def computeOccupancy(cursor, schema, start_date, end_date, delta, dry_run):
                 occupancyData.append((occupancy, timezonedStartTime, entity,
                                       entity_type, path, name, refdevice))
     logger.info("occupancy computed")
-
     if dry_run:
         logger.info("dry run mode, no data will be stored")
     stmt = 'INSERT INTO "{}"."etparkingoccupancy" (occupancy, time_index, entity_id, entity_type, fiware_servicepath, name, refdevice) VALUES (?,?,?,?,?,?,?)'.format(schema)
