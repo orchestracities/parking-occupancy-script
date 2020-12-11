@@ -84,7 +84,7 @@ def computeOccupancy(cursor, schema, start_date, end_date, delta, dry_run):
         currentTime = end_date.replace(microsecond=0, second=0, minute=0,
                                        tzinfo=pytz.UTC)
     else:
-        currentTime = datetime.datetime.now().replace(microsecond=0, second=0,
+        currentTime = datetime.datetime.utcnow().replace(microsecond=0, second=0,
                                                       minute=0,
                                                       tzinfo=pytz.UTC)
 
@@ -116,8 +116,8 @@ def computeOccupancy(cursor, schema, start_date, end_date, delta, dry_run):
     while offset >= 0:
         stmt = query.format(schema, limit, offset)
         cursor.execute(stmt,
-            (previousTime.strftime('%s') + '000',
-             currentTime.strftime('%s') + '000', 'None', 'unknown'))
+            (previousTime.isoformat(),
+             currentTime.isoformat(), 'None', 'unknown'))
         current_size = len(data)
         data += cursor.fetchall()
         if len(data) == current_size:
@@ -158,48 +158,8 @@ def computeOccupancy(cursor, schema, start_date, end_date, delta, dry_run):
                 name = None
                 refdevice = None
             entityData = filter(lambda a: a[2] == entity, pathData)
-            # For each of the hours since the start time given
-            for i in range(hoursDiff):
-                start_time = (currentTime - datetime.timedelta(
-                    hours=(hoursDiff - i + 1))).strftime('%s') + '000'
-                end_time = (currentTime - datetime.timedelta(
-                    hours=(hoursDiff - i))).strftime('%s') + '000'
-                hourData = filter(
-                    lambda d: d[1] >= int(start_time) and d[1] < int(end_time),
-                    entityData)
-                occupiedTime = 0
-                if len(hourData) > 0:
-                    for j in range((len(hourData) + 1)):
-                        if j != len(hourData):
-                            if hourData[j][3]:
-                                entity_type = hourData[j][3]
-                            if hourData[j][5]:
-                                name = hourData[j][5]
-                            if hourData[j][6]:
-                                refdevice = hourData[j][6]
-                        timePassed = 0
-                        if j == 0:
-                            timePassed = hourData[j][1] - long(start_time)
-                        elif j == len(hourData):
-                            timePassed = long(end_time) - hourData[j - 1][1]
-                        else:
-                            timePassed = hourData[j][1] - hourData[j - 1][1]
-                        if previousState == 'occupied':
-                            occupiedTime = occupiedTime + timePassed
-                        if j != len(hourData) and hourData[j][0]:
-                            previousState = hourData[j][0]
-                if len(hourData) == 0 and previousState == 'occupied':
-                    occupiedTime = 3600000
-                if len(hourData) == 0 and previousState == 'free':
-                    occupiedTime = 0
-                occupancy = int(math.ceil((occupiedTime / 3600000.0) * 100))
-                timezonedStartTime = datetime.datetime.fromtimestamp(
-                    long(start_time) / 1000.0).strftime('%s') + '000'
-                logger.debug("entity {} in path {} occupancy computed is {} "
-                             "on time {}".format(entity, path, occupancy,
-                                                 timezonedStartTime))
-                occupancyData.append((occupancy, timezonedStartTime, entity,
-                                      entity_type, path, name, refdevice))
+            occupancyData.append(computeEntityOccupancy(entity, entity_type, name, path, refdevice, entityData, previousState, previousTime, hoursDiff))
+
     logger.info("occupancy computed")
     if dry_run:
         logger.info("dry run mode, no data will be stored")
@@ -211,6 +171,57 @@ def computeOccupancy(cursor, schema, start_date, end_date, delta, dry_run):
             cursor.executemany(stmt, chunck)
     if not dry_run:
         logger.info("occupancy stored")
+
+def computeEntityOccupancy(entity, entity_type, name, path, refdevice, entityData, previousState, previousTime, hoursDiff):
+    logging.basicConfig()
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    occupancyData = []
+    # For each of the hours since the start time given
+    for i in range(hoursDiff):
+        start_time = (previousTime + datetime.timedelta(
+            hours=i)).strftime('%s') + '000'
+        end_time = (previousTime + datetime.timedelta(
+            hours=(i + 1))).strftime('%s') + '000'
+        hourData = filter(
+            lambda d: d[1] >= int(start_time) and d[1] < int(end_time),
+            entityData)
+        occupiedTime = 0
+        if len(hourData) > 0:
+            for j in range((len(hourData) + 1)):
+                if j != len(hourData):
+                    if hourData[j][3]:
+                        entity_type = hourData[j][3]
+                    if hourData[j][5]:
+                        name = hourData[j][5]
+                    if hourData[j][6]:
+                        refdevice = hourData[j][6]
+                timePassed = 0
+                if j == 0:
+                    timePassed = hourData[j][1] - long(start_time)
+                elif j == len(hourData):
+                    timePassed = long(end_time) - hourData[j - 1][1]
+                else:
+                    timePassed = hourData[j][1] - hourData[j - 1][1]
+                if previousState == 'occupied':
+                    occupiedTime = occupiedTime + timePassed
+                if j != len(hourData) and hourData[j][0]:
+                    previousState = hourData[j][0]
+        if len(hourData) == 0 and previousState == 'occupied':
+            occupiedTime = 3600000
+        if len(hourData) == 0 and previousState == 'free':
+            occupiedTime = 0
+        occupancy = round(math.ceil((occupiedTime / 3600000.0) * 100),2)
+        timezonedStartTime = datetime.datetime.fromtimestamp(
+            long(start_time) / 1000.0)
+        timezonedStartTime = timezonedStartTime.replace(
+            tzinfo=pytz.UTC).isoformat()
+        logger.debug("entity {} in path {} occupancy computed is {} "
+                     "on time {}".format(entity, path, occupancy,
+                                         timezonedStartTime))
+        occupancyData.append((occupancy, timezonedStartTime, entity,
+                              entity_type, path, name, refdevice))
+    return occupancyData
 
 
 if __name__ == "__main__":
