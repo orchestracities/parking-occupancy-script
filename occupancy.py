@@ -55,7 +55,7 @@ def main(argv):
     if not crate_host:
         logger.error("missing parameters")
         print('occupancy.py -h <cratedb_host> -u <cratedb_user>')
-        sys.exit(2)
+        sys.exit(-2)
     try:
         logger.info("connecting...")
         schema = "mt" + tenant_name.lower()
@@ -65,7 +65,7 @@ def main(argv):
         computeOccupancy(cursor, schema, start_date, end_date, delta, dry_run)
     except Exception as e:
         logger.error(str(e), exc_info=True)
-        sys.exit(2)
+        sys.exit(-2)
     finally:
         if cursor:
             cursor.close()
@@ -102,7 +102,7 @@ def computeOccupancy(cursor, schema, start_date, end_date, delta, dry_run):
     if hoursDiff < 1:
         logger.error("Start date too close to current time")
         print("Start date too close to current time")
-        sys.exit(2)
+        sys.exit(-2)
 
     # Setting up cursor and pulling data since the start time
     limit = 1000
@@ -158,7 +158,7 @@ def computeOccupancy(cursor, schema, start_date, end_date, delta, dry_run):
                 name = None
                 refdevice = None
             entityData = filter(lambda a: a[2] == entity, pathData)
-            occupancyData.append(computeEntityOccupancy(entity, entity_type, name, path, refdevice, entityData, previousState, previousTime, hoursDiff))
+            occupancyData.extend(computeEntityOccupancy(entity, entity_type, name, path, refdevice, entityData, previousState, previousTime, hoursDiff))
 
     logger.info("occupancy computed")
     if dry_run:
