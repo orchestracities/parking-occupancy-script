@@ -1,20 +1,20 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: parking-occupancy-compute-test
+  name: parking-occupancy-compute-crate-test
   namespace: prod
 spec:
   template:
     metadata:
       labels:
-        job-name: parking-occupancy-compute-test
+        job-name: parking-occupancy-compute-crate-test
     spec:
       containers:
       - args:
         - occupancy.py
         - -h http://crate-crate:4200
         - -r True
-        image: orchestracities/parking-occupancy:latest
+        image: orchestracities/parking-occupancy-crate:latest
         imagePullPolicy: Always
         name: parking-occupancy
       restartPolicy: OnFailure
