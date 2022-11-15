@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: parking-occupancy-compute-postgres-test
+  namespace: prod
+spec:
+  template:
+    metadata:
+      labels:
+        job-name: parking-occupancy-compute-postgres-test
+    spec:
+      containers:
+      - args:
+        - occupancy.py
+        - -h http://postgres-postgres:5432
+        - -r True
+        image: orchestracities/parking-occupancy-postgres:latest
+        imagePullPolicy: Always
+        name: parking-occupancy-postgres
+      restartPolicy: OnFailure

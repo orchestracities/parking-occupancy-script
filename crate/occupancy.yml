@@ -1,0 +1,16 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: parking-occupancy-compute
+spec:
+  schedule: "0 1 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: parking-occupancy
+            image: orchestracities/parking-occupancy-crate
+            args:
+            - /occupancy.py
+          restartPolicy: OnFailure
