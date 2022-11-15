@@ -10,7 +10,7 @@ spec:
         spec:
           containers:
           - name: parking-occupancy
-            image: orchestracities/parking-occupancy
+            image: orchestracities/parking-occupancy-crate
             args:
             - /occupancy.py
           restartPolicy: OnFailure
