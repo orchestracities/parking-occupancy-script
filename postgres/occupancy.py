@@ -41,7 +41,7 @@ def main(argv):
         elif opt in ("-p", "--password"):
             pg_password = arg
         elif opt in ("-t", "--tenant-name"):
-            tenant_name = parser.parse(arg)
+            tenant_name = arg
         elif opt in ("-s", "--start-date"):
             start_date = parser.parse(arg)
         elif opt in ("-e", "--end-date"):
@@ -159,7 +159,7 @@ def computeOccupancy(cursor, schema, start_date, end_date, delta, dry_run):
     logger.info("occupancy computed")
     if dry_run:
         logger.info("dry run mode, no data will be stored")
-    stmt = "INSERT INTO {}.etparkingoccupancy (occupancy, time_index, entity_id, entity_type, fiware_servicepath, name, refdevice) VALUES (?,?,?,?,?,?,?)".format(schema)
+    stmt = "INSERT INTO {}.etparkingoccupancy (occupancy, time_index, entity_id, entity_type, fiware_servicepath, name, refdevice) VALUES (%s,%s,%s,%s,%s,%s,%s)".format(schema)
     for i in range(0, len(occupancyData), 1000):
         chunck = occupancyData[i:i + 1000]
         if not dry_run:
