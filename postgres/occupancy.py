@@ -64,6 +64,7 @@ def main(argv):
                         port=5432)
         cursor = connection.cursor()
         computeOccupancy(cursor, schema, start_date, end_date, delta, dry_run)
+        connection.commit()
     except Exception as e:
         logger.error(str(e), exc_info=True)
         sys.exit(-2)
