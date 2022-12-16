@@ -208,7 +208,7 @@ def computeEntityOccupancy(entity, entity_type, name, path, refdevice, entityDat
             occupiedTime = datetime.timedelta(hours=1)
         if len(hourData) == 0 and previousState == 'free':
             occupiedTime = datetime.timedelta(hours=0)
-        occupancy = occupiedTime.total_seconds() * 1000
+        occupancy = round(math.ceil((occupiedTime.total_seconds() / 3600.0) * 100),2)
         timezonedStartTime = start_time.replace(
             tzinfo=pytz.UTC).isoformat()
         logger.debug("entity {} in path {} occupancy computed is {} "
